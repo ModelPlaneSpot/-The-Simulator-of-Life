@@ -23,6 +23,53 @@ const MAX_SAFE_MONEY = 999_999_999_999;
 const clampMoney = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(MAX_SAFE_MONEY, Math.floor(value))) : 0;
 const clampDebt = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(MAX_SAFE_MONEY, Math.floor(value))) : 0;
 const withSmallRandomness = (value: number, percent = 0.03) => Math.floor(value * (1 + (Math.random() * 2 - 1) * percent));
+const isDependentChildWithoutJob = (person: Pick<Player, 'age' | 'job'>) => person.age < 18 && !person.job;
+
+const getFallbackExperienceRequirements = (job: Job) => {
+  if (job.salary > 200000) {
+    return [{ type: 'category' as const, years: 10 }];
+  }
+  if (job.salary > 100000) {
+    return [{ type: 'category' as const, years: 5 }];
+  }
+  if (job.salary > 60000) {
+    return [{ type: 'total' as const, years: 2 }];
+  }
+  return [];
+};
+
+const getDisplayedExperienceRequirements = (job: Job) => {
+  const requirements: string[] = [];
+
+  if (job.requirements.minCategoryExperience) {
+    requirements.push(`Experience: ${job.requirements.minCategoryExperience}+ years in ${job.category}`);
+  }
+
+  if (job.requirements.minTotalExperience) {
+    requirements.push(`Experience: ${job.requirements.minTotalExperience}+ years total`);
+  }
+
+  const previousJobTitle = job.requirements.previousJobId
+    ? JOBS.find((candidate) => candidate.id === job.requirements.previousJobId)?.title
+    : null;
+
+  if (previousJobTitle && job.requirements.yearsInPreviousJob) {
+    requirements.push(`Experience: ${previousJobTitle} ${job.requirements.yearsInPreviousJob}+ years`);
+  }
+
+  if (!job.requirements.minCategoryExperience && !job.requirements.minTotalExperience) {
+    getFallbackExperienceRequirements(job).forEach((requirement) => {
+      requirements.push(
+        requirement.type === 'category'
+          ? `Experience: ${requirement.years}+ years in ${job.category}`
+          : `Experience: ${requirement.years}+ years total`
+      );
+    });
+  }
+
+  return requirements;
+};
+
 const getBusinessUpgradeNames = (businessName: string) => {
   const name = businessName.toLowerCase();
   const themes = [
@@ -177,6 +224,30 @@ const LIFESTYLE_MULTIPLIERS: Record<string, { multiplier: number; happinessBonus
 
 // Calculate yearly living expenses for a player
 const calculateYearlyExpenses = (player: Player) => {
+  if (isDependentChildWithoutJob(player)) {
+    return {
+      baseLivingCost: 0,
+      housingCost: 0,
+      foodCost: 0,
+      transportCost: 0,
+      utilitiesCost: 0,
+      healthcareCost: 0,
+      personalCost: 0,
+      kidsCost: 0,
+      petCost: 0,
+      assetMaintenance: 0,
+      mortgagePayments: 0,
+      loanPayments: 0,
+      taxAmount: 0,
+      grossIncome: 0,
+      jobIncome: 0,
+      propertyIncome: 0,
+      businessIncome: 0,
+      totalLivingExpenses: 0,
+      totalMonthly: 0,
+    };
+  }
+
   const countryData = COUNTRY_DATA[player.country] || { cost: 10000 };
   const lifestyleInfo = LIFESTYLE_MULTIPLIERS[player.lifestyleTier] || LIFESTYLE_MULTIPLIERS.modest;
   
@@ -938,6 +1009,8 @@ export default function App() {
       }
     }
 
+    const hasUnlockedIndependentEconomy = !isDependentChildWithoutJob({ age: currentAge, job: newJob });
+
     // Yearly changes — salary with taxes
     if (newJob) {
       const langBonus = getLanguageSalaryBonus(newLanguages);
@@ -976,40 +1049,43 @@ export default function App() {
     }
 
     let missedPayments = false;
-    newLoans = newLoans.map(loan => {
-      if (loan.monthsLeft > 0) {
-        const paymentsThisYear = Math.min(12, loan.monthsLeft);
-        const yearlyPayment = loan.monthlyPayment * paymentsThisYear;
-        
-        if (newMoney >= yearlyPayment) {
-          newMoney -= yearlyPayment;
-          loan.monthsLeft -= paymentsThisYear;
-          loan.amount -= (yearlyPayment * 0.7); // Approximate principal reduction
-        } else {
-          // Missed payment
-          missedPayments = true;
-          const penalty = loan.amount * (loan.interestRate / 100);
-          loan.amount += penalty; // Add penalty to principal
-          newDebt += penalty;
-          addLog(`You missed payments on your ${loan.type} loan! Penalty added.`, 'error', currentAge);
+    if (hasUnlockedIndependentEconomy) {
+      newLoans = newLoans.map(loan => {
+        if (loan.monthsLeft > 0) {
+          const paymentsThisYear = Math.min(12, loan.monthsLeft);
+          const yearlyPayment = loan.monthlyPayment * paymentsThisYear;
+          
+          if (newMoney >= yearlyPayment) {
+            newMoney -= yearlyPayment;
+            loan.monthsLeft -= paymentsThisYear;
+            loan.amount -= (yearlyPayment * 0.7); // Approximate principal reduction
+          } else {
+            missedPayments = true;
+            const penalty = loan.amount * (loan.interestRate / 100);
+            loan.amount += penalty;
+            newDebt += penalty;
+            addLog(`You missed payments on your ${loan.type} loan! Penalty added.`, 'error', currentAge);
+          }
         }
+        return loan;
+      }).filter(loan => loan.monthsLeft > 0);
+
+      newDebt = newLoans.reduce((sum, loan) => sum + loan.amount, 0) + (player.debt - (player.loans?.reduce((sum, l) => sum + l.amount, 0) || 0));
+
+      if (newDebt > 0) {
+        const yearlyInterest = Math.floor(newDebt * 0.05);
+        newDebt += yearlyInterest;
+        newStress += randomInt(0, 12);
       }
-      return loan;
-    }).filter(loan => loan.monthsLeft > 0);
-    
-    // Update total debt from loans
-    newDebt = newLoans.reduce((sum, loan) => sum + loan.amount, 0) + (player.debt - (player.loans?.reduce((sum, l) => sum + l.amount, 0) || 0));
 
-    if (newDebt > 0) {
-      const yearlyInterest = Math.floor(newDebt * 0.05);
-      newDebt += yearlyInterest;
-      newStress += randomInt(0, 12);
-    }
-
-    if (missedPayments) {
-      newCreditScore = Math.max(300, newCreditScore - randomInt(20, 50));
-    } else if (newLoans.length > 0) {
-      newCreditScore = Math.min(850, newCreditScore + randomInt(5, 15));
+      if (missedPayments) {
+        newCreditScore = Math.max(300, newCreditScore - randomInt(20, 50));
+      } else if (newLoans.length > 0) {
+        newCreditScore = Math.min(850, newCreditScore + randomInt(5, 15));
+      }
+    } else {
+      newLoans = [];
+      newDebt = 0;
     }
 
     // Process Pets
@@ -1040,43 +1116,43 @@ export default function App() {
     // Asset yearly logic (mortgage, rent, appreciation)
     newAssets = newAssets.map(asset => {
       let updatedAsset = { ...asset };
-      if (updatedAsset.mortgage && updatedAsset.mortgage.yearsLeft > 0) {
-        newMoney -= updatedAsset.mortgage.monthlyPayment * 12;
-        updatedAsset.mortgage.principal -= updatedAsset.mortgage.monthlyPayment * 6; // Simplified principal reduction
-        updatedAsset.mortgage.yearsLeft -= 1;
-        if (newMoney < 0) {
-          newDebt += Math.abs(newMoney);
-          newMoney = 0;
-        }
-      }
-      if (updatedAsset.tenant) {
-        let rentMultiplier = 12;
-        const tenantRoll = Math.random() * 100;
-        if (tenantRoll > updatedAsset.tenant.reliability) {
-          // Bad tenant event
-          if (Math.random() < 0.2) {
-            updatedAsset.condition = Math.max(0, updatedAsset.condition - randomInt(10, 30));
-            addLog(`Your tenant trashed ${updatedAsset.name}! Condition dropped.`, 'warning', currentAge);
-          } else {
-            rentMultiplier = 11;
-            addLog(`Your tenant in ${updatedAsset.name} was late on rent this year.`, 'warning', currentAge);
+      if (hasUnlockedIndependentEconomy) {
+        if (updatedAsset.mortgage && updatedAsset.mortgage.yearsLeft > 0) {
+          newMoney -= updatedAsset.mortgage.monthlyPayment * 12;
+          updatedAsset.mortgage.principal -= updatedAsset.mortgage.monthlyPayment * 6; // Simplified principal reduction
+          updatedAsset.mortgage.yearsLeft -= 1;
+          if (newMoney < 0) {
+            newDebt += Math.abs(newMoney);
+            newMoney = 0;
           }
-        } else if (updatedAsset.tenant.reliability > 80 && Math.random() < 0.1) {
-          updatedAsset.condition = Math.min(100, updatedAsset.condition + randomInt(1, 5));
-          addLog(`Your great tenant took good care of ${updatedAsset.name}.`, 'success', currentAge);
         }
-        const smallBoostProp = (updatedAsset.smallUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
-        const largeBoostProp = (updatedAsset.largeUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
-        const rentEarned = Math.floor((updatedAsset.rentPrice || 0) * rentMultiplier * (1 + smallBoostProp + largeBoostProp));
-        newMoney += rentEarned;
-        if (rentEarned > 0) addLog(`🏠 ${updatedAsset.name} rental income: $${rentEarned.toLocaleString()}`, 'success', currentAge);
-      } else if (updatedAsset.type === 'Property' && !updatedAsset.isPrimaryResidence) {
-        // Non-rented investment properties generate 10% yearly revenue
-        const smallBoostProp = (updatedAsset.smallUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
-        const largeBoostProp = (updatedAsset.largeUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
-        const propIncome = Math.floor(updatedAsset.value * 0.10 * (1 + smallBoostProp + largeBoostProp));
-        newMoney += propIncome;
-        if (propIncome > 0) addLog(`🏠 ${updatedAsset.name} generated $${propIncome.toLocaleString()} in revenue.`, 'success', currentAge);
+        if (updatedAsset.tenant) {
+          let rentMultiplier = 12;
+          const tenantRoll = Math.random() * 100;
+          if (tenantRoll > updatedAsset.tenant.reliability) {
+            if (Math.random() < 0.2) {
+              updatedAsset.condition = Math.max(0, updatedAsset.condition - randomInt(10, 30));
+              addLog(`Your tenant trashed ${updatedAsset.name}! Condition dropped.`, 'warning', currentAge);
+            } else {
+              rentMultiplier = 11;
+              addLog(`Your tenant in ${updatedAsset.name} was late on rent this year.`, 'warning', currentAge);
+            }
+          } else if (updatedAsset.tenant.reliability > 80 && Math.random() < 0.1) {
+            updatedAsset.condition = Math.min(100, updatedAsset.condition + randomInt(1, 5));
+            addLog(`Your great tenant took good care of ${updatedAsset.name}.`, 'success', currentAge);
+          }
+          const smallBoostProp = (updatedAsset.smallUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
+          const largeBoostProp = (updatedAsset.largeUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
+          const rentEarned = Math.floor((updatedAsset.rentPrice || 0) * rentMultiplier * (1 + smallBoostProp + largeBoostProp));
+          newMoney += rentEarned;
+          if (rentEarned > 0) addLog(`🏠 ${updatedAsset.name} rental income: $${rentEarned.toLocaleString()}`, 'success', currentAge);
+        } else if (updatedAsset.type === 'Property' && !updatedAsset.isPrimaryResidence) {
+          const smallBoostProp = (updatedAsset.smallUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
+          const largeBoostProp = (updatedAsset.largeUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0);
+          const propIncome = Math.floor(updatedAsset.value * 0.10 * (1 + smallBoostProp + largeBoostProp));
+          newMoney += propIncome;
+          if (propIncome > 0) addLog(`🏠 ${updatedAsset.name} generated $${propIncome.toLocaleString()} in revenue.`, 'success', currentAge);
+        }
       }
       
       const appreciation = (randomInt(-2, 8) / 100);
@@ -1087,7 +1163,7 @@ export default function App() {
     });
 
     // Business yearly logic
-    if (newBusinesses.length > 0) {
+    if (hasUnlockedIndependentEconomy && newBusinesses.length > 0) {
       const marketRoll = Math.random();
       let currentMarketCycle: 'Boom' | 'Normal' | 'Crash' = 'Normal';
       let currentMarketMultiplier = 1.0;
@@ -4848,13 +4924,14 @@ export default function App() {
                             )}
                             <div className="text-xs text-zinc-500 space-y-1">
                               {job.requirements.education && <div>Req: {job.requirements.education}{job.requirements.alternativeEducation ? ` or ${job.requirements.alternativeEducation}` : ''}</div>}
+                              {job.requirements.age && <div>Age: {job.requirements.age}+</div>}
                               {job.requirements.smarts && <div>Req Smarts: {job.requirements.smarts}+</div>}
                               {job.requirements.health && <div>Req Health: {job.requirements.health}+</div>}
                               {job.requirements.popularity && <div>Req Popularity: {job.requirements.popularity}%</div>}
-                              {job.requirements.previousJobId && <div>Exp: {JOBS.find(j => j.id === job.requirements.previousJobId)?.title} ({job.requirements.yearsInPreviousJob} yrs)</div>}
                               {job.requirements.money && <div>Cost: ${job.requirements.money.toLocaleString()}</div>}
-                              {job.salary > 200000 && <div className="text-amber-500">⚡ 10+ yrs in {job.category}</div>}
-                              {job.salary > 100000 && job.salary <= 200000 && <div className="text-amber-500">⚡ 5+ yrs in {job.category}</div>}
+                              {getDisplayedExperienceRequirements(job).map((requirementLine) => (
+                                <div key={requirementLine}>{requirementLine}</div>
+                              ))}
                             </div>
                           </button>
                         );
@@ -5319,8 +5396,10 @@ export default function App() {
                             <div className="space-y-2 text-sm mb-6">
                               <div className="flex justify-between">
                                 <span className="text-zinc-400">Annual Revenue</span>
-                                <span className="text-emerald-400 font-medium">
-                                  ${Math.floor(business.basePrice * 0.10 * (1 + (business.smallUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0) + (business.largeUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0)) * marketMultiplier).toLocaleString()}
+                                <span className={`font-medium ${isDependentChildWithoutJob(player) ? 'text-zinc-500' : 'text-emerald-400'}`}>
+                                  {isDependentChildWithoutJob(player)
+                                    ? 'Locked until employed'
+                                    : `$${Math.floor(business.basePrice * 0.10 * (1 + (business.smallUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0) + (business.largeUpgrades || []).reduce((s, u) => s + (u.purchased ? u.revenueBoost : 0), 0)) * marketMultiplier).toLocaleString()}`}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -5333,7 +5412,7 @@ export default function App() {
                                 <span className="text-zinc-400">Profitability</span>
                                 <span className="text-emerald-400 font-medium">{business.profitability}%</span>
                               </div>
-                              {business.mortgage && (
+                              {business.mortgage && !isDependentChildWithoutJob(player) && (
                                 <div className="flex justify-between">
                                   <span className="text-zinc-400">Mortgage ({Math.ceil(business.mortgage.monthsLeft / 12)} yrs)</span>
                                   <span className="text-rose-400 font-medium">-${(business.mortgage.monthlyPayment * 12).toLocaleString()}/yr</span>
@@ -5443,14 +5522,16 @@ export default function App() {
                               {asset.type !== 'Crypto' && (
                                 <div className="text-xs text-zinc-500">Condition: {asset.condition}%</div>
                               )}
-                              {asset.type === 'Property' && asset.mortgage && (
+                              {asset.type === 'Property' && asset.mortgage && !isDependentChildWithoutJob(player) && (
                                 <div className="text-xs text-rose-400 mt-1">
                                   Mortgage: ${asset.mortgage.principal.toLocaleString()} (${asset.mortgage.monthlyPayment.toLocaleString()}/mo)
                                 </div>
                               )}
                               {asset.type === 'Property' && (
-                                <div className="text-xs text-emerald-400 mt-1">
-                                  Expected Rent: ${Math.floor(asset.value * 0.10 * (1 + ((player.realEstateSkill || 0) / 100))).toLocaleString()}/mo
+                                <div className={`text-xs mt-1 ${isDependentChildWithoutJob(player) ? 'text-zinc-500' : 'text-emerald-400'}`}>
+                                  {isDependentChildWithoutJob(player)
+                                    ? 'Income locked until employed'
+                                    : `Expected Rent: $${Math.floor(asset.value * 0.10 * (1 + ((player.realEstateSkill || 0) / 100))).toLocaleString()}/mo`}
                                 </div>
                               )}
                               {asset.type === 'Property' && (
@@ -5626,10 +5707,19 @@ export default function App() {
               const netIncome = expenses.grossIncome - expenses.taxAmount;
               const totalOutflows = expenses.totalLivingExpenses + expenses.mortgagePayments + expenses.loanPayments + expenses.taxAmount;
               const yearlyNet = expenses.grossIncome - totalOutflows;
+              const economyLocked = isDependentChildWithoutJob(player);
               
               return (
               <div className="space-y-8">
+                {economyLocked && (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                    <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-3">Child Finances</h3>
+                    <div className="text-sm text-zinc-300">Your personal economy is locked until you get a job. You can inherit money, assets, and businesses, but you will not gain or lose yearly income yet.</div>
+                  </div>
+                )}
+
                 {/* Lifestyle Tier Selector */}
+                {!economyLocked && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                   <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Lifestyle</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -5648,8 +5738,10 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+                )}
 
                 {/* Monthly Expense Breakdown */}
+                {!economyLocked && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                   <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Monthly Expense Breakdown</h3>
                   <div className="space-y-3">
@@ -5683,8 +5775,10 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Income Breakdown */}
+                {!economyLocked && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                   <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Income Sources</h3>
                   <div className="space-y-3">
@@ -5715,8 +5809,10 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Income vs Expenses Summary */}
+                {!economyLocked && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                   <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">Annual Summary</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -5739,6 +5835,7 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Credit Profile */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">

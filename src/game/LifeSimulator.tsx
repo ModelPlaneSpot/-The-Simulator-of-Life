@@ -408,6 +408,48 @@ export default function App() {
       ],
     },
     {
+      number: 8,
+      version: '1.8',
+      title: 'Business Upgrade System',
+      date: 'April 2026',
+      changes: [
+        'Replaced old upgrades with 5 small and 7 large upgrades per asset',
+        'Stacking revenue growth now applies across multiple upgrades',
+        'Large upgrades also increase business value over time',
+      ],
+    },
+    {
+      number: 9,
+      version: '1.9',
+      title: 'Business Management Features',
+      date: 'April 2026',
+      changes: [
+        'Businesses can now switch between different business types',
+        'Property mortgages can be paid off instantly if enough money is available',
+      ],
+    },
+    {
+      number: 10,
+      version: '1.10',
+      title: 'UI Icon Overhaul',
+      date: 'April 2026',
+      changes: [
+        'Added emoji icons to all jobs, businesses, properties, family, pets, and countries',
+        'Icons use consistent UI styling across the entire interface',
+      ],
+    },
+    {
+      number: 11,
+      version: '1.11',
+      title: 'Bug Fixes & Requirement Accuracy',
+      date: 'April 2026',
+      changes: [
+        'Fixed children having income or debt at birth',
+        'Job requirements now show exact "X+ years" values',
+        'Stat requirement displays are now accurate and consistent',
+      ],
+    },
+    {
       number: 6,
       version: '1.6',
       title: 'Business Upgrades',

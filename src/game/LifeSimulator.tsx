@@ -387,6 +387,16 @@ export default function App() {
 
   const GAME_UPDATES = [
     {
+      number: 12,
+      version: '1.12',
+      title: 'Friends & Inheritance Expansion',
+      date: 'April 2026',
+      changes: [
+        'Added a friends system to make and manage friends',
+        'Expanded inheritance so money and assets can go to any living family member or friend',
+      ],
+    },
+    {
       number: 7,
       version: '1.7',
       title: 'Inflation System',
@@ -468,7 +478,7 @@ export default function App() {
     },
   ];
 
-  const LATEST_UPDATE_VERSION = '1.7';
+  const LATEST_UPDATE_VERSION = '1.12';
 
   useEffect(() => {
     localStorage.setItem('lastSeenUpdate', LATEST_UPDATE_VERSION);

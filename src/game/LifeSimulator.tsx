@@ -6331,9 +6331,15 @@ export default function App() {
                       const canAffordMortgage = player && player.money >= downPayment;
                       
                       return (
-                        <div key={idea.name} className="flex flex-col p-4 bg-zinc-950 border border-zinc-800 rounded-xl text-left h-full">
+                        <div key={idea.id} className="flex flex-col p-4 bg-zinc-950 border border-zinc-800 rounded-xl text-left h-full">
                           <div className="font-medium text-zinc-200 mb-1">{idea.name}</div>
-                          <div className="text-sm font-bold text-zinc-400 mb-4">Cost: ${idea.basePrice.toLocaleString()}</div>
+                          <div className="text-xs uppercase tracking-wider text-zinc-500 mb-1">{idea.category} business</div>
+                          <div className="text-sm font-bold text-zinc-400 mb-1">Cost: ${idea.basePrice.toLocaleString()}</div>
+                          <div className="text-xs text-zinc-500 mb-4 flex flex-wrap gap-x-3 gap-y-1">
+                            <span>Risk: {idea.riskLevel}</span>
+                            <span>Scale: {idea.category}</span>
+                            <span>{idea.uniqueUpgrades.length} upgrades</span>
+                          </div>
                           <div className="flex flex-col gap-2 mt-auto">
                             <button
                               onClick={() => startBusiness(idea, false)}

@@ -35,7 +35,7 @@ const getFallbackExperienceRequirements = (job: Job) => {
   if (job.salary > 60000) {
     return [{ type: 'total' as const, years: 2 }];
   }
-  return [];
+  return [{ type: 'total' as const, years: 0 }];
 };
 
 const getDisplayedExperienceRequirements = (job: Job) => {

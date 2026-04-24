@@ -94,7 +94,17 @@ const smallBusinesses = [
   { name: 'Watch repair', price: 15000, risk: 'Low', upgrades: [] },
   { name: 'Jewelry stand', price: 25000, risk: 'Medium', upgrades: [] },
   { name: 'Farm stand', price: 5000, risk: 'Low', upgrades: [] },
-  { name: 'Parking lot business', price: 100000, risk: 'Low', upgrades: [] }
+  { name: 'Parking lot business', price: 100000, risk: 'Low', upgrades: [] },
+  { name: 'Artisan chocolate shop', price: 18000, risk: 'Low', upgrades: [] },
+  { name: 'Mobile pet grooming', price: 22000, risk: 'Low', upgrades: [] },
+  { name: 'Solar panel installation', price: 45000, risk: 'Medium', upgrades: [] },
+  { name: 'Podcast agency', price: 35000, risk: 'Low', upgrades: [] },
+  { name: 'Microbrewery taproom', price: 85000, risk: 'Medium', upgrades: [] },
+  { name: 'Boutique travel concierge', price: 30000, risk: 'Low', upgrades: [] },
+  { name: 'Meal prep service', price: 55000, risk: 'Medium', upgrades: [] },
+  { name: 'VR arcade', price: 70000, risk: 'Medium', upgrades: [] },
+  { name: 'E-bike repair shop', price: 40000, risk: 'Low', upgrades: [] },
+  { name: 'Mobile app studio', price: 90000, risk: 'Medium', upgrades: [] }
 ];
 
 const mediumBusinesses = [
@@ -173,7 +183,17 @@ const mediumBusinesses = [
   { name: 'Data analytics company', price: 600000, risk: 'Medium', upgrades: [] },
   { name: 'Cloud service company', price: 2000000, risk: 'High', upgrades: [] },
   { name: 'Tech repair chain', price: 750000, risk: 'Medium', upgrades: [] },
-  { name: 'Gaming lounge chain', price: 1200000, risk: 'Medium', upgrades: [] }
+  { name: 'Gaming lounge chain', price: 1200000, risk: 'Medium', upgrades: [] },
+  { name: 'E-commerce marketplace', price: 300000, risk: 'Medium', upgrades: [] },
+  { name: 'Regional airline', price: 5000000, risk: 'High', upgrades: [] },
+  { name: 'Streaming service', price: 4000000, risk: 'High', upgrades: [] },
+  { name: 'Medical diagnostics lab', price: 1200000, risk: 'Medium', upgrades: [] },
+  { name: 'Credit union', price: 2000000, risk: 'Medium', upgrades: [] },
+  { name: 'Logistics hub', price: 1500000, risk: 'Medium', upgrades: [] },
+  { name: 'Car subscription service', price: 800000, risk: 'Medium', upgrades: [] },
+  { name: 'Boutique hotel chain', price: 2500000, risk: 'High', upgrades: [] },
+  { name: 'Telemedicine clinic', price: 1000000, risk: 'Medium', upgrades: [] },
+  { name: 'Green energy installer', price: 700000, risk: 'Medium', upgrades: [] }
 ];
 
 const largeBusinesses = [
@@ -242,7 +262,17 @@ const largeBusinesses = [
   { name: 'Mega mall', price: 200000000, risk: 'High', upgrades: [] },
   { name: 'Skyscraper developer', price: 500000000, risk: 'High', upgrades: [] },
   { name: 'Global logistics', price: 100000000, risk: 'Medium', upgrades: [] },
-  { name: 'Food corporation', price: 100000000, risk: 'Medium', upgrades: [] }
+  { name: 'Food corporation', price: 100000000, risk: 'Medium', upgrades: [] },
+  { name: 'National grocery chain', price: 15000000, risk: 'Medium', upgrades: [] },
+  { name: 'International airline', price: 25000000, risk: 'High', upgrades: [] },
+  { name: 'Car manufacturer', price: 75000000, risk: 'High', upgrades: [] },
+  { name: 'Hospital network', price: 40000000, risk: 'High', upgrades: [] },
+  { name: 'Telecom carrier', price: 60000000, risk: 'High', upgrades: [] },
+  { name: 'E-commerce platform', price: 80000000, risk: 'High', upgrades: [] },
+  { name: 'Streaming service giant', price: 70000000, risk: 'High', upgrades: [] },
+  { name: 'Renewable energy utility', price: 50000000, risk: 'Medium', upgrades: [] },
+  { name: 'University network', price: 35000000, risk: 'Medium', upgrades: [] },
+  { name: 'Media conglomerate', price: 90000000, risk: 'High', upgrades: [] }
 ];
 
 const ultraRichBusinesses = [
@@ -286,7 +316,17 @@ const ultraRichBusinesses = [
   { name: 'Sports league owner', price: 1000000000, risk: 'Medium', upgrades: [] },
   { name: 'International bank', price: 2000000000, risk: 'Medium', upgrades: [] },
   { name: 'World trade company', price: 5000000000, risk: 'Medium', upgrades: [] },
-  { name: 'Global construction empire', price: 1000000000, risk: 'High', upgrades: [] }
+  { name: 'Global construction empire', price: 1000000000, risk: 'High', upgrades: [] },
+  { name: 'Global social media platform', price: 1500000000, risk: 'Very High', upgrades: [] },
+  { name: 'Cloud infrastructure giant', price: 2500000000, risk: 'Very High', upgrades: [] },
+  { name: 'Fintech super app', price: 1000000000, risk: 'Very High', upgrades: [] },
+  { name: 'Biotech conglomerate', price: 3000000000, risk: 'High', upgrades: [] },
+  { name: 'Entertainment empire', price: 3500000000, risk: 'High', upgrades: [] },
+  { name: 'Space exploration corporation', price: 5000000000, risk: 'Very High', upgrades: [] },
+  { name: 'Electric vehicle superbrand', price: 4000000000, risk: 'Very High', upgrades: [] },
+  { name: 'E-commerce megaplatform', price: 4500000000, risk: 'Very High', upgrades: [] },
+  { name: 'Global search platform', price: 5000000000, risk: 'Very High', upgrades: [] },
+  { name: 'International airline alliance', price: 2000000000, risk: 'High', upgrades: [] }
 ];
 
 const generateUniqueUpgrades = (businessName: string) => {

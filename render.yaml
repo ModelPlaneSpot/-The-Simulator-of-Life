@@ -7,7 +7,7 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: NODE_VERSION
-        value: 22.22.1
+        value: 22
       - key: NPM_CONFIG_LEGACY_PEER_DEPS
         value: "false"
     routes:

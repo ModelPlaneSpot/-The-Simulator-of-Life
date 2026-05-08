@@ -13,7 +13,7 @@ import { getRandomName } from './utils/names';
 import { ASSETS_FOR_SALE } from './assets';
 import { SCENARIOS } from './scenarios';
 import { ACTIVITIES, CRIMES } from './activities';
-import { BUSINESSES } from './businesses';
+import { BUSINESSES, BUSINESS_TYPE_COUNT } from './businesses';
 import { ALL_LANGUAGES, LANGUAGE_STUDY_COST, LANGUAGE_YEARLY_GAIN, getStartingLanguages, getLanguageSalaryBonus } from './languages';
 import type { BusinessDefinition, PlayerBusiness } from './types';
 import type { PlayerLanguage } from './languages';
@@ -5430,7 +5430,7 @@ export default function App() {
                         <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg"><Building className="w-5 h-5" /></div>
                         <div className="flex-1">
                           <div className="font-medium text-zinc-200">Start a Business</div>
-                          <div className="text-xs text-zinc-500">Choose from dozens of different businesses</div>
+                          <div className="text-xs text-zinc-500">Choose from {BUSINESS_TYPE_COUNT.toLocaleString()} scalable business types</div>
                         </div>
                         <Plus className="w-5 h-5 text-zinc-600" />
                       </button>
@@ -6319,11 +6319,19 @@ export default function App() {
               <Building className="w-6 h-6 text-emerald-400" />
               Start a Business
             </h2>
+            <div className="mb-6 text-sm text-zinc-400">
+              {BUSINESS_TYPE_COUNT.toLocaleString()} balanced business types across food, tech, finance, travel, media, health, retail, logistics, and corporate empires.
+            </div>
             
             <div className="space-y-8">
               {Array.from(new Set(BUSINESSES.map(b => b.category))).map(category => (
                 <div key={category}>
-                  <h3 className="text-lg font-bold text-zinc-300 mb-4 pb-2 border-b border-zinc-800">{category}</h3>
+                  <h3 className="text-lg font-bold text-zinc-300 mb-4 pb-2 border-b border-zinc-800 flex items-center justify-between gap-3">
+                    <span>{category}</span>
+                    <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                      {BUSINESSES.filter(b => b.category === category).length} types
+                    </span>
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {BUSINESSES.filter(b => b.category === category).map(idea => {
                       const downPayment = Math.floor(idea.basePrice * 0.2);

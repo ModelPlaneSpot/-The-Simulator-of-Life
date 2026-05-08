@@ -387,6 +387,15 @@ export default function App() {
 
   const GAME_UPDATES = [
     {
+      number: 14,
+      version: '1.14',
+      title: 'Major Business Expansion',
+      date: 'May 2026',
+      changes: [
+        'Added 200+ new business types across multiple industries with improved variety, realism, and scalability',
+      ],
+    },
+    {
       number: 12,
       version: '1.12',
       title: 'Friends & Inheritance Expansion',
@@ -520,7 +529,7 @@ export default function App() {
     },
   ];
 
-  const LATEST_UPDATE_VERSION = '1.12';
+  const LATEST_UPDATE_VERSION = '1.14';
 
   useEffect(() => {
     localStorage.setItem('lastSeenUpdate', LATEST_UPDATE_VERSION);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Heart, Brain, Smile, DollarSign, Briefcase, GraduationCap, Building, Shield, Activity, ChevronRight, User, Plus, Play, Home, Car, Ship, Plane, Bitcoin, X, Check, Users, Save, LogOut, ArrowUpCircle, ShoppingBag, Lightbulb, Globe, ScrollText } from 'lucide-react';
+import { Heart, Brain, Smile, DollarSign, Briefcase, GraduationCap, Building, Shield, Activity, ChevronRight, User, Plus, Play, Home, Car, Ship, Plane, Bitcoin, X, Check, Users, Save, LogOut, ArrowUpCircle, ShoppingBag, Lightbulb, Globe, ScrollText, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import Tutorial from './Tutorial';
 import ImmigrationPanel from './ImmigrationPanel';
@@ -175,6 +175,144 @@ const calculateNetWorth = (p: Player) => {
     });
   }
   return p.money + p.assets.reduce((sum, a) => sum + a.value, 0) + businessValue - p.debt;
+};
+
+type AchievementDifficulty = 'Easy' | 'Medium' | 'Hard' | 'Extreme';
+type Achievement = {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: AchievementDifficulty;
+  condition: (player: Player) => boolean;
+};
+type AchievementEarned = {
+  id: string;
+  characterName: string;
+  country: string;
+  age: number;
+  earnedAt: string;
+};
+
+const ACHIEVEMENT_STORAGE_KEY = 'lifeSimAchievements';
+const hasDegree = (player: Player, degree: EducationLevel) => player.degrees?.includes(degree);
+const getTotalExperience = (player: Player) => (player.jobHistory || []).reduce((sum, job) => sum + job.years, 0) + player.yearsInJob;
+const countAssetsByType = (player: Player, type: AssetType) => (player.assets || []).filter(asset => asset.type === type).length;
+
+const ACHIEVEMENTS: Achievement[] = [
+  { id: 'first_steps', title: 'First Steps', description: 'Reach age 1.', difficulty: 'Easy', condition: p => p.age >= 1 },
+  { id: 'teen_years', title: 'Teen Years', description: 'Reach age 13.', difficulty: 'Easy', condition: p => p.age >= 13 },
+  { id: 'adult_life', title: 'Adult Life', description: 'Reach age 18.', difficulty: 'Easy', condition: p => p.age >= 18 },
+  { id: 'middle_age', title: 'Middle Age', description: 'Reach age 50.', difficulty: 'Medium', condition: p => p.age >= 50 },
+  { id: 'golden_years', title: 'Golden Years', description: 'Reach age 80.', difficulty: 'Hard', condition: p => p.age >= 80 },
+  { id: 'centenarian', title: 'Centenarian', description: 'Live to 100 years old.', difficulty: 'Extreme', condition: p => p.age >= 100 },
+  { id: 'supercentenarian', title: 'Supercentenarian', description: 'Live to 110 years old.', difficulty: 'Extreme', condition: p => p.age >= 110 },
+  { id: 'age_120', title: 'Legendary Lifespan', description: 'Live to 120 years old.', difficulty: 'Extreme', condition: p => p.age >= 120 },
+  { id: 'first_job', title: 'First Paycheck', description: 'Get your first job.', difficulty: 'Easy', condition: p => !!p.job || (p.jobHistory || []).length > 0 },
+  { id: 'five_year_career', title: 'Reliable Worker', description: 'Build 5 total years of job experience.', difficulty: 'Easy', condition: p => getTotalExperience(p) >= 5 },
+  { id: 'ten_year_career', title: 'Career Veteran', description: 'Build 10 total years of job experience.', difficulty: 'Medium', condition: p => getTotalExperience(p) >= 10 },
+  { id: 'twenty_year_career', title: 'Lifetime Professional', description: 'Build 20 total years of job experience.', difficulty: 'Hard', condition: p => getTotalExperience(p) >= 20 },
+  { id: 'high_income', title: 'High Earner', description: 'Hold a job paying $100,000 or more.', difficulty: 'Medium', condition: p => (p.job?.salary || 0) >= 100000 },
+  { id: 'elite_income', title: 'Elite Earner', description: 'Hold a job paying $250,000 or more.', difficulty: 'Hard', condition: p => (p.job?.salary || 0) >= 250000 },
+  { id: 'president', title: 'Commander in Chief', description: 'Become President.', difficulty: 'Extreme', condition: p => p.job?.title === 'President' },
+  { id: 'mayor', title: 'City Hall', description: 'Become Mayor.', difficulty: 'Hard', condition: p => p.job?.title === 'Mayor' },
+  { id: 'governor', title: 'State Power', description: 'Become Governor.', difficulty: 'Extreme', condition: p => p.job?.title === 'Governor' },
+  { id: 'doctor', title: 'Doctor', description: 'Work as a doctor or specialist.', difficulty: 'Hard', condition: p => p.job?.category === 'Health' && (p.job?.salary || 0) >= 100000 },
+  { id: 'lawyer', title: 'Legal Mind', description: 'Work in law.', difficulty: 'Medium', condition: p => p.job?.category === 'Law' },
+  { id: 'tech_worker', title: 'Tech Track', description: 'Work in technology.', difficulty: 'Medium', condition: p => p.job?.category === 'Technology' },
+  { id: 'finance_worker', title: 'Market Mind', description: 'Work in finance.', difficulty: 'Medium', condition: p => p.job?.category === 'Finance' },
+  { id: 'astronaut', title: 'Beyond Earth', description: 'Become an astronaut.', difficulty: 'Extreme', condition: p => p.job?.title === 'Astronaut' },
+  { id: 'university_grad', title: 'University Graduate', description: 'Graduate from university.', difficulty: 'Medium', condition: p => hasDegree(p, 'University') },
+  { id: 'medical_school', title: 'Medical School Graduate', description: 'Graduate from medical school.', difficulty: 'Hard', condition: p => hasDegree(p, 'Medical School') },
+  { id: 'law_school', title: 'Law School Graduate', description: 'Graduate from law school.', difficulty: 'Hard', condition: p => hasDegree(p, 'Law School') },
+  { id: 'business_school', title: 'Business School Graduate', description: 'Graduate from business school.', difficulty: 'Hard', condition: p => hasDegree(p, 'Business School') },
+  { id: 'phd', title: 'Doctorate', description: 'Complete a PhD program.', difficulty: 'Extreme', condition: p => hasDegree(p, 'PhD Program') },
+  { id: 'five_degrees', title: 'Credential Collector', description: 'Earn 5 degrees or certifications.', difficulty: 'Hard', condition: p => (p.degrees || []).filter(d => d !== 'None').length >= 5 },
+  { id: 'ten_degrees', title: 'Academic Legend', description: 'Earn 10 degrees or certifications.', difficulty: 'Extreme', condition: p => (p.degrees || []).filter(d => d !== 'None').length >= 10 },
+  { id: 'first_10k', title: 'First $10K', description: 'Reach $10,000 net worth.', difficulty: 'Easy', condition: p => calculateNetWorth(p) >= 10000 },
+  { id: 'first_100k', title: 'Six Figures', description: 'Reach $100,000 net worth.', difficulty: 'Medium', condition: p => calculateNetWorth(p) >= 100000 },
+  { id: 'millionaire', title: 'Millionaire', description: 'Reach $1 million net worth.', difficulty: 'Hard', condition: p => calculateNetWorth(p) >= 1000000 },
+  { id: 'ten_million', title: 'Decamillionaire', description: 'Reach $10 million net worth.', difficulty: 'Extreme', condition: p => calculateNetWorth(p) >= 10000000 },
+  { id: 'hundred_million', title: 'Nine-Figure Fortune', description: 'Reach $100 million net worth.', difficulty: 'Extreme', condition: p => calculateNetWorth(p) >= 100000000 },
+  { id: 'billionaire', title: 'Billionaire', description: 'Become a billionaire.', difficulty: 'Extreme', condition: p => calculateNetWorth(p) >= 1000000000 },
+  { id: 'ten_billion', title: '$10 Billion Empire', description: 'Reach $10 billion net worth.', difficulty: 'Extreme', condition: p => calculateNetWorth(p) >= 10000000000 },
+  { id: 'cash_100k', title: 'Cash Cushion', description: 'Hold $100,000 in cash.', difficulty: 'Medium', condition: p => p.money >= 100000 },
+  { id: 'cash_million', title: 'Liquid Millionaire', description: 'Hold $1 million in cash.', difficulty: 'Hard', condition: p => p.money >= 1000000 },
+  { id: 'debt_10k', title: 'In the Red', description: 'Go $10,000 into debt.', difficulty: 'Easy', condition: p => p.debt >= 10000 },
+  { id: 'debt_200k', title: 'Deep Debt', description: 'Go $200,000 into debt.', difficulty: 'Hard', condition: p => p.debt >= 200000 },
+  { id: 'debt_million', title: 'Debt Spiral', description: 'Go $1 million into debt.', difficulty: 'Extreme', condition: p => p.debt >= 1000000 },
+  { id: 'credit_excellent', title: 'Excellent Credit', description: 'Reach an 800 credit score.', difficulty: 'Hard', condition: p => (p.creditScore || 0) >= 800 },
+  { id: 'first_business', title: 'Founder', description: 'Start your first business.', difficulty: 'Medium', condition: p => (p.businesses || []).length >= 1 },
+  { id: 'five_businesses', title: 'Serial Entrepreneur', description: 'Own 5 businesses.', difficulty: 'Hard', condition: p => (p.businesses || []).length >= 5 },
+  { id: 'ten_businesses', title: 'Business Empire', description: 'Own 10 businesses.', difficulty: 'Extreme', condition: p => (p.businesses || []).length >= 10 },
+  { id: 'twenty_businesses', title: 'Tycoon Network', description: 'Own 20 businesses.', difficulty: 'Extreme', condition: p => (p.businesses || []).length >= 20 },
+  { id: 'ultra_business', title: 'Ultra-Rich Owner', description: 'Own an Ultra Rich business.', difficulty: 'Extreme', condition: p => (p.businesses || []).some(b => b.category === 'Ultra Rich') },
+  { id: 'first_property', title: 'Property Owner', description: 'Buy your first property.', difficulty: 'Medium', condition: p => countAssetsByType(p, 'Property') >= 1 },
+  { id: 'five_properties', title: 'Real Estate Portfolio', description: 'Own 5 properties.', difficulty: 'Hard', condition: p => countAssetsByType(p, 'Property') >= 5 },
+  { id: 'ten_properties', title: 'Real Estate Mogul', description: 'Own 10 properties.', difficulty: 'Extreme', condition: p => countAssetsByType(p, 'Property') >= 10 },
+  { id: 'first_car', title: 'First Car', description: 'Buy a car.', difficulty: 'Easy', condition: p => countAssetsByType(p, 'Car') >= 1 },
+  { id: 'car_collector', title: 'Car Collector', description: 'Own 5 cars.', difficulty: 'Medium', condition: p => countAssetsByType(p, 'Car') >= 5 },
+  { id: 'boat_owner', title: 'Boat Owner', description: 'Own a boat.', difficulty: 'Hard', condition: p => countAssetsByType(p, 'Boat') >= 1 },
+  { id: 'plane_owner', title: 'Private Aviation', description: 'Own a plane.', difficulty: 'Extreme', condition: p => countAssetsByType(p, 'Plane') >= 1 },
+  { id: 'crypto_holder', title: 'Crypto Holder', description: 'Own crypto.', difficulty: 'Medium', condition: p => countAssetsByType(p, 'Crypto') >= 1 },
+  { id: 'asset_collector', title: 'Asset Collector', description: 'Own 20 assets.', difficulty: 'Hard', condition: p => (p.assets || []).length >= 20 },
+  { id: 'married', title: 'Married Life', description: 'Get married.', difficulty: 'Medium', condition: p => p.partner?.type === 'married' },
+  { id: 'engaged', title: 'Put a Ring on It', description: 'Get engaged.', difficulty: 'Easy', condition: p => p.partner?.type === 'engaged' || p.partner?.type === 'married' },
+  { id: 'first_child', title: 'Parent', description: 'Have your first child.', difficulty: 'Easy', condition: p => (p.kids || []).length >= 1 },
+  { id: 'three_children', title: 'Growing Family', description: 'Have 3 children.', difficulty: 'Medium', condition: p => (p.kids || []).length >= 3 },
+  { id: 'five_children', title: 'Big Family', description: 'Have 5 children.', difficulty: 'Hard', condition: p => (p.kids || []).length >= 5 },
+  { id: 'ten_children', title: 'Full House', description: 'Have 10 children.', difficulty: 'Extreme', condition: p => (p.kids || []).length >= 10 },
+  { id: 'first_friend', title: 'New Friend', description: 'Make a friend.', difficulty: 'Easy', condition: p => (p.friends || []).length >= 1 },
+  { id: 'five_friends', title: 'Social Circle', description: 'Have 5 friends.', difficulty: 'Medium', condition: p => (p.friends || []).length >= 5 },
+  { id: 'ten_friends', title: 'Popular Network', description: 'Have 10 friends.', difficulty: 'Hard', condition: p => (p.friends || []).length >= 10 },
+  { id: 'pet_owner', title: 'Pet Owner', description: 'Own a pet.', difficulty: 'Easy', condition: p => (p.pets || []).length >= 1 },
+  { id: 'pet_family', title: 'Pet Family', description: 'Own 5 pets.', difficulty: 'Medium', condition: p => (p.pets || []).length >= 5 },
+  { id: 'perfect_health', title: 'Peak Health', description: 'Reach 100 health.', difficulty: 'Medium', condition: p => p.health >= 100 },
+  { id: 'perfect_smarts', title: 'Genius Mind', description: 'Reach 100 smarts.', difficulty: 'Medium', condition: p => p.smarts >= 100 },
+  { id: 'perfect_happiness', title: 'Pure Joy', description: 'Reach 100 happiness.', difficulty: 'Medium', condition: p => p.happiness >= 100 },
+  { id: 'perfect_looks', title: 'Perfect Looks', description: 'Reach 100 looks.', difficulty: 'Medium', condition: p => p.looks >= 100 },
+  { id: 'low_health', title: 'Close Call', description: 'Drop below 10 health and survive.', difficulty: 'Hard', condition: p => p.isAlive && p.health <= 10 },
+  { id: 'max_stress', title: 'Breaking Point', description: 'Reach 100 stress.', difficulty: 'Hard', condition: p => (p.stress || 0) >= 100 },
+  { id: 'famous', title: 'Famous', description: 'Reach 50 fame.', difficulty: 'Hard', condition: p => p.fame >= 50 },
+  { id: 'icon', title: 'Icon', description: 'Reach 100 fame.', difficulty: 'Extreme', condition: p => p.fame >= 100 },
+  { id: 'followers_10k', title: '10K Followers', description: 'Reach 10,000 followers.', difficulty: 'Medium', condition: p => p.followers >= 10000 },
+  { id: 'followers_million', title: 'Million Followers', description: 'Reach 1 million followers.', difficulty: 'Extreme', condition: p => p.followers >= 1000000 },
+  { id: 'popular', title: 'Popular', description: 'Reach 75 popularity.', difficulty: 'Medium', condition: p => p.popularity >= 75 },
+  { id: 'beloved', title: 'Beloved', description: 'Reach 100 popularity.', difficulty: 'Hard', condition: p => p.popularity >= 100 },
+  { id: 'good_karma', title: 'Good Karma', description: 'Reach 90 karma.', difficulty: 'Medium', condition: p => p.karma >= 90 },
+  { id: 'bad_karma', title: 'Bad Reputation', description: 'Drop below 10 karma.', difficulty: 'Medium', condition: p => p.karma <= 10 },
+  { id: 'prison', title: 'Behind Bars', description: 'Go to prison.', difficulty: 'Hard', condition: p => !!p.inPrison },
+  { id: 'language_two', title: 'Bilingual', description: 'Know 2 languages.', difficulty: 'Easy', condition: p => (p.languages || []).filter(l => l.proficiency >= 80).length >= 2 },
+  { id: 'language_five', title: 'Polyglot', description: 'Know 5 languages.', difficulty: 'Hard', condition: p => (p.languages || []).filter(l => l.proficiency >= 80).length >= 5 },
+  { id: 'language_ten', title: 'Global Voice', description: 'Know 10 languages.', difficulty: 'Extreme', condition: p => (p.languages || []).filter(l => l.proficiency >= 80).length >= 10 },
+  { id: 'immigrant', title: 'New Home', description: 'Move to another country.', difficulty: 'Medium', condition: p => (p.previousCountries || []).length >= 1 },
+  { id: 'world_citizen', title: 'World Citizen', description: 'Live in 5 countries.', difficulty: 'Extreme', condition: p => new Set([p.country, ...(p.previousCountries || [])]).size >= 5 },
+  { id: 'visa_holder', title: 'Visa Holder', description: 'Have an approved visa.', difficulty: 'Medium', condition: p => (p.visas || []).some(v => v.status === 'approved') },
+  { id: 'leadership_50', title: 'Leader', description: 'Reach 50 leadership skill.', difficulty: 'Medium', condition: p => (p.skills?.leadership || 0) >= 50 },
+  { id: 'leadership_100', title: 'Born Leader', description: 'Reach 100 leadership skill.', difficulty: 'Hard', condition: p => (p.skills?.leadership || 0) >= 100 },
+  { id: 'fitness_100', title: 'Elite Fitness', description: 'Reach 100 fitness skill.', difficulty: 'Hard', condition: p => (p.skills?.fitness || 0) >= 100 },
+  { id: 'creativity_100', title: 'Creative Genius', description: 'Reach 100 creativity skill.', difficulty: 'Hard', condition: p => (p.skills?.creativity || 0) >= 100 },
+  { id: 'driving_100', title: 'Master Driver', description: 'Reach 100 driving skill.', difficulty: 'Hard', condition: p => (p.skills?.driving || 0) >= 100 },
+  { id: 'illness_survivor', title: 'Illness Survivor', description: 'Live with an illness and stay alive.', difficulty: 'Medium', condition: p => p.isAlive && (p.illnesses || []).length > 0 },
+  { id: 'no_debt_millionaire', title: 'Clean Millionaire', description: 'Reach $1 million net worth with no debt.', difficulty: 'Extreme', condition: p => calculateNetWorth(p) >= 1000000 && p.debt === 0 },
+  { id: 'self_made', title: 'Self-Made', description: 'Reach $1 million net worth before age 40.', difficulty: 'Extreme', condition: p => p.age < 40 && calculateNetWorth(p) >= 1000000 },
+  { id: 'early_retire', title: 'Early Retire Ready', description: 'Reach $2 million net worth before age 50.', difficulty: 'Extreme', condition: p => p.age < 50 && calculateNetWorth(p) >= 2000000 },
+  { id: 'broke_adult', title: 'Broke Adult', description: 'Have less than $100 cash as an adult.', difficulty: 'Easy', condition: p => p.age >= 18 && p.money < 100 },
+  { id: 'family_legacy', title: 'Family Legacy', description: 'Have children and a positive net worth after age 60.', difficulty: 'Hard', condition: p => p.age >= 60 && (p.kids || []).length > 0 && calculateNetWorth(p) > 0 },
+  { id: 'business_and_family', title: 'All Sides of Life', description: 'Have a business, partner, child, and property.', difficulty: 'Hard', condition: p => (p.businesses || []).length > 0 && !!p.partner && (p.kids || []).length > 0 && countAssetsByType(p, 'Property') > 0 },
+];
+
+const getAchievementHistory = (): AchievementEarned[] => {
+  try {
+    const raw = localStorage.getItem(ACHIEVEMENT_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveAchievementHistory = (history: AchievementEarned[]) => {
+  localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(history));
 };
 
 // Tax rates by country (income tax %)
@@ -383,9 +521,27 @@ const setSaveSlots = (slots: SaveSlot[]) => {
 
 export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [menuScreen, setMenuScreen] = useState<'menu' | 'new' | 'newChoice' | 'saves' | 'updates'>('menu');
+  const [menuScreen, setMenuScreen] = useState<'menu' | 'new' | 'newChoice' | 'saves' | 'updates' | 'achievements'>('menu');
 
   const GAME_UPDATES = [
+    {
+      number: 16,
+      version: '1.16',
+      title: 'Random Events Update',
+      date: 'May 2026',
+      changes: [
+        'Added unpredictable life events such as disasters, lawsuits, market crashes, and lottery wins that affect gameplay',
+      ],
+    },
+    {
+      number: 15,
+      version: '1.15',
+      title: 'Achievements Update',
+      date: 'May 2026',
+      changes: [
+        'Added a full achievement system with 100 achievements and permanent achievement history across all lives',
+      ],
+    },
     {
       number: 14,
       version: '1.14',
@@ -538,7 +694,7 @@ export default function App() {
     },
   ];
 
-  const LATEST_UPDATE_VERSION = '1.14';
+  const LATEST_UPDATE_VERSION = '1.16';
 
   useEffect(() => {
     localStorage.setItem('lastSeenUpdate', LATEST_UPDATE_VERSION);
@@ -546,6 +702,7 @@ export default function App() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSlotName, setSaveSlotName] = useState('');
   const [saveSlots, setSaveSlotsState] = useState<SaveSlot[]>(getSaveSlots);
+  const [achievementHistory, setAchievementHistory] = useState<AchievementEarned[]>(getAchievementHistory);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
@@ -591,6 +748,43 @@ export default function App() {
       type 
     }]);
   };
+
+  const checkAchievements = useCallback((currentPlayer: Player) => {
+    setAchievementHistory(prev => {
+      const earnedIds = new Set(prev.map(entry => entry.id));
+      const newlyEarned = ACHIEVEMENTS
+        .filter(achievement => !earnedIds.has(achievement.id) && achievement.condition(currentPlayer))
+        .map(achievement => ({
+          id: achievement.id,
+          characterName: `${currentPlayer.firstName} ${currentPlayer.lastName}`,
+          country: currentPlayer.country,
+          age: currentPlayer.age,
+          earnedAt: new Date().toISOString(),
+        }));
+
+      if (newlyEarned.length === 0) return prev;
+
+      const next = [...prev, ...newlyEarned];
+      saveAchievementHistory(next);
+      newlyEarned.forEach(entry => {
+        const achievement = ACHIEVEMENTS.find(item => item.id === entry.id);
+        if (achievement) {
+          setLogs(logs => [...logs, {
+            id: Math.random().toString(),
+            year: new Date().getFullYear() + currentPlayer.age,
+            age: currentPlayer.age,
+            message: `🏆 Achievement unlocked: ${achievement.title}`,
+            type: 'success',
+          }]);
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (player) checkAchievements(player);
+  }, [player, checkAchievements]);
 
   const getJobFitDetails = (job: Job) => {
     if (!player) return { eligible: false, reasons: ['No active life'] };
@@ -1610,6 +1804,168 @@ export default function App() {
         addLog(`You passed away at age ${currentAge}, ${flavor}${pName ? ` ${pName} was by your side.` : ''}`, 'warning', currentAge);
       }
 
+      // === MAJOR RANDOM EVENTS ===
+      // Big uncontrollable events occasionally reshape finances, health, and relationships.
+      if (isAlive && currentAge >= 5 && Math.random() < 0.35) {
+        type MajorRandomEvent = {
+          message: string;
+          type: LogEntry['type'];
+          condition?: () => boolean;
+          apply: () => void;
+        };
+
+        const majorEvents: MajorRandomEvent[] = [
+          {
+            message: `A severe storm caused major damage in ${player.country}. Repairs and disruption hit your finances.`,
+            type: 'error',
+            apply: () => {
+              const damage = Math.max(500, Math.floor(Math.max(10000, calculateNetWorth(player)) * 0.04));
+              newMoney -= damage;
+              newHealth -= randomInt(0, 8);
+              newStress += randomInt(10, 20);
+              newAssets = newAssets.map(asset => asset.type === 'Property' ? { ...asset, condition: Math.max(0, asset.condition - randomInt(5, 20)) } : asset);
+            },
+          },
+          {
+            message: 'A recession hit the economy. Income opportunities dried up and asset values dipped.',
+            type: 'warning',
+            apply: () => {
+              newMoney -= Math.max(1000, Math.floor(newMoney * 0.08));
+              newHappiness -= randomInt(5, 12);
+              newStress += randomInt(8, 18);
+              newAssets = newAssets.map(asset => ({ ...asset, value: Math.max(0, Math.floor(asset.value * 0.92)) }));
+              newBusinesses = newBusinesses.map(business => ({ ...business, reputation: Math.max(0, business.reputation - randomInt(3, 10)) }));
+              setMarketCycle('Crash');
+              setMarketMultiplier(0.75);
+            },
+          },
+          {
+            message: 'The stock market crashed. Investments and business confidence took a sharp hit.',
+            type: 'error',
+            condition: () => newAssets.some(asset => asset.type === 'Crypto') || newBusinesses.length > 0 || newMoney > 50000,
+            apply: () => {
+              newMoney -= Math.max(1000, Math.floor(newMoney * 0.12));
+              newAssets = newAssets.map(asset => asset.type === 'Crypto' ? { ...asset, value: Math.max(0, Math.floor(asset.value * 0.55)) } : asset);
+              newHappiness -= randomInt(5, 15);
+              newStress += randomInt(10, 25);
+              setMarketCycle('Crash');
+              setMarketMultiplier(0.7);
+            },
+          },
+          {
+            message: 'You were named in a lawsuit. Legal fees and stress piled up quickly.',
+            type: 'error',
+            condition: () => currentAge >= 18,
+            apply: () => {
+              const legalCost = randomInt(5000, 75000);
+              newMoney -= legalCost;
+              newHappiness -= randomInt(8, 18);
+              newStress += randomInt(15, 30);
+              newKarma = Math.max(0, newKarma - randomInt(2, 8));
+            },
+          },
+          {
+            message: 'You won the lottery. It changed your finances overnight.',
+            type: 'success',
+            condition: () => currentAge >= 18,
+            apply: () => {
+              const prize = [50000, 250000, 1000000, 5000000][randomInt(0, 3)];
+              newMoney += prize;
+              newHappiness += randomInt(12, 25);
+              newFame += prize >= 1000000 ? randomInt(5, 15) : randomInt(1, 5);
+            },
+          },
+          {
+            message: 'An unexpected inheritance arrived from a distant relative.',
+            type: 'success',
+            apply: () => {
+              const inheritance = randomInt(10000, 500000);
+              newMoney += inheritance;
+              newHappiness += randomInt(3, 10);
+              newStress = Math.max(0, newStress - randomInt(5, 15));
+            },
+          },
+          {
+            message: 'A serious accident disrupted your year and left medical bills behind.',
+            type: 'error',
+            apply: () => {
+              const medicalBills = randomInt(2000, 60000);
+              newMoney -= medicalBills;
+              newHealth -= randomInt(10, 35);
+              newLooks -= randomInt(0, 8);
+              newHappiness -= randomInt(5, 18);
+              newStress += randomInt(10, 25);
+            },
+          },
+          {
+            message: 'A disease outbreak swept through your area. Everyone felt the strain.',
+            type: 'warning',
+            apply: () => {
+              newHealth -= randomInt(5, 25);
+              newHappiness -= randomInt(5, 12);
+              newStress += randomInt(8, 20);
+              if (Math.random() < 0.35 && !newIllnesses.includes('Post-viral fatigue')) {
+                newIllnesses.push('Post-viral fatigue');
+              }
+              newFriends = newFriends.map(friend => ({ ...friend, relationship: Math.max(0, friend.relationship - randomInt(0, 5)) }));
+            },
+          },
+          {
+            message: 'A surprise business grant was awarded to you after a competitive application.',
+            type: 'success',
+            condition: () => newBusinesses.length > 0,
+            apply: () => {
+              const grant = randomInt(10000, 250000);
+              newMoney += grant;
+              newHappiness += randomInt(5, 12);
+              newBusinesses = newBusinesses.map((business, index) => index === 0 ? { ...business, reputation: Math.min(100, business.reputation + randomInt(5, 15)) } : business);
+            },
+          },
+          {
+            message: 'A trusted friend betrayed you in a money dispute.',
+            type: 'warning',
+            condition: () => newFriends.length > 0 && currentAge >= 18,
+            apply: () => {
+              const loss = randomInt(500, 25000);
+              newMoney -= loss;
+              newHappiness -= randomInt(8, 18);
+              newStress += randomInt(8, 18);
+              newFriends = newFriends.map((friend, index) => index === 0 ? { ...friend, relationship: Math.max(0, friend.relationship - randomInt(20, 50)) } : friend);
+            },
+          },
+          {
+            message: 'A family emergency pulled everyone together, but it was expensive and exhausting.',
+            type: 'warning',
+            condition: () => newKids.length > 0 || newParents.some(parent => !parent.isDead) || !!newPartner,
+            apply: () => {
+              newMoney -= randomInt(1000, 30000);
+              newStress += randomInt(10, 25);
+              newHappiness -= randomInt(3, 10);
+              newKids = newKids.map(kid => ({ ...kid, relationship: Math.min(100, kid.relationship + randomInt(2, 8)) }));
+              newParents = newParents.map(parent => parent.isDead ? parent : { ...parent, relationship: Math.min(100, parent.relationship + randomInt(2, 8)) });
+              if (newPartner) newPartner.relationship = Math.min(100, newPartner.relationship + randomInt(2, 8));
+            },
+          },
+          {
+            message: 'A wave of good luck followed you all year.',
+            type: 'success',
+            apply: () => {
+              newMoney += randomInt(1000, 100000);
+              newHealth += randomInt(2, 8);
+              newHappiness += randomInt(8, 20);
+              newStress = Math.max(0, newStress - randomInt(8, 20));
+            },
+          },
+        ];
+
+        const validMajorEvents = majorEvents.filter(event => !event.condition || event.condition());
+        const selectedEvent = validMajorEvents[Math.floor(Math.random() * validMajorEvents.length)];
+        if (selectedEvent) {
+          selectedEvent.apply();
+          addLog(`🌐 ${selectedEvent.message}`, selectedEvent.type, currentAge);
+        }
+      }
+
       // === PERSONALIZED RANDOM EVENTS ===
       // Multiple small events can fire per year to make things feel alive
       const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -1795,6 +2151,10 @@ export default function App() {
     newHappiness = Math.max(0, Math.min(100, newHappiness));
     newLooks = Math.max(0, Math.min(100, newLooks));
     newStress = Math.max(0, Math.min(100, newStress));
+    if (newMoney < 0) {
+      newDebt += Math.abs(newMoney);
+      newMoney = 0;
+    }
     newMoney = clampMoney(newMoney);
     newDebt = clampDebt(newDebt);
     if (newMoney > player.money + 50000) toast.success(`Major financial gain: +$${(newMoney - player.money).toLocaleString()}`);
@@ -4027,6 +4387,15 @@ export default function App() {
     setReformsThisYear(0);
   };
 
+  const earnedAchievementIds = new Set(achievementHistory.map(entry => entry.id));
+  const achievementById = new Map(achievementHistory.map(entry => [entry.id, entry]));
+  const achievementDifficultyClasses: Record<AchievementDifficulty, string> = {
+    Easy: 'bg-emerald-500/10 text-emerald-400',
+    Medium: 'bg-sky-500/10 text-sky-400',
+    Hard: 'bg-amber-500/10 text-amber-400',
+    Extreme: 'bg-rose-500/10 text-rose-400',
+  };
+
   if (!isPlaying) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
@@ -4055,6 +4424,14 @@ export default function App() {
                   {saveSlots.length > 0 && (
                     <span className="ml-2 text-xs bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">{saveSlots.length}</span>
                   )}
+                </button>
+                <button
+                  onClick={() => { setAchievementHistory(getAchievementHistory()); setMenuScreen('achievements'); }}
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl px-4 py-4 transition-colors flex items-center justify-center gap-2 text-lg"
+                >
+                  <Trophy className="w-5 h-5" />
+                  Achievements
+                  <span className="ml-2 text-xs bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">{achievementHistory.length}/{ACHIEVEMENTS.length}</span>
                 </button>
               </div>
 
@@ -4270,6 +4647,49 @@ export default function App() {
                   ))}
                 </div>
               )}
+            </>
+          )}
+
+          {/* === ACHIEVEMENTS SCREEN === */}
+          {menuScreen === 'achievements' && (
+            <>
+              <div className="flex items-center mb-6">
+                <button onClick={() => setMenuScreen('menu')} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 transition-colors mr-3">
+                  <ChevronRight className="w-5 h-5 rotate-180" />
+                </button>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Achievements</h2>
+                  <p className="text-zinc-500 text-sm">{achievementHistory.length} of {ACHIEVEMENTS.length} unlocked across all lives</p>
+                </div>
+              </div>
+              <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+                {ACHIEVEMENTS.map(achievement => {
+                  const earned = achievementById.get(achievement.id);
+                  return (
+                    <div key={achievement.id} className={`border rounded-xl p-4 ${earned ? 'bg-zinc-950 border-indigo-500/40' : 'bg-zinc-950/60 border-zinc-800'}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${earned ? 'bg-indigo-600/20 text-indigo-300' : 'bg-zinc-800 text-zinc-600'}`}>
+                          <Trophy className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className={`font-semibold ${earned ? 'text-white' : 'text-zinc-500'}`}>{achievement.title}</h3>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${achievementDifficultyClasses[achievement.difficulty]}`}>{achievement.difficulty}</span>
+                          </div>
+                          <p className="text-sm text-zinc-400">{achievement.description}</p>
+                          {earned ? (
+                            <p className="text-xs text-indigo-300 mt-2">
+                              Earned by {earned.characterName} in {earned.country} at age {earned.age}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-zinc-600 mt-2">Locked</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </>
           )}
         </div>

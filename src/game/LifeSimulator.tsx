@@ -396,6 +396,15 @@ export default function App() {
       ],
     },
     {
+      number: 13,
+      version: '1.13',
+      title: 'Major Job Expansion',
+      date: 'May 2026',
+      changes: [
+        'Added 200+ new jobs across multiple fields with proper experience requirements and clear "X+ years" progression from entry level to elite careers',
+      ],
+    },
+    {
       number: 12,
       version: '1.12',
       title: 'Friends & Inheritance Expansion',
